@@ -1,0 +1,48 @@
+package ggc.app;
+
+import ggc.app.exceptions.UnknownProductKeyException;
+import ggc.exceptions.UndefinedProductKeyException;
+import pt.tecnico.uilib.Dialog;
+import pt.tecnico.uilib.menus.Menu;
+import ggc.WarehouseManager;
+import ggc.exceptions.ImportFileException;
+
+/** Main driver for the management application. */
+public class App {
+
+  /** @param args command line arguments. */
+  public static void main(String[] args) {
+    try (var ui = Dialog.UI) {
+      WarehouseManager manager = new WarehouseManager();
+
+      String datafile = System.getProperty("import");
+      if (datafile != null) {
+        try {
+          manager.importFile(datafile);
+        } catch (ImportFileException e) {
+          // no behavior described: just present the problem
+          e.printStackTrace();
+        }
+      }
+
+      // TODO REMOVE THIS FFS
+
+      String string =
+      "PARTNER|M2|Toshiba|Tokyo, Japan\n" +
+              "PARTNER|S1|Toshiba|Tokyo, Japan\n" +
+              "PARTNER|M1|Rohit Figueiredo|New Delhi, India\n" +
+              "BATCH_S|ROLHA|M1|2|75\n" +
+              "BATCH_S|VIDRO|M1|1|45\n" +
+              "BATCH_S|SAL|S1|40|500\n" +
+              "BATCH_M|GARRAFA|S1|13|2|0.1|ROLHA:10#VIDRO:5\n";
+
+      try {
+        manager.importFile1(string);
+      } catch (ImportFileException e){e.printStackTrace();}
+
+      Menu menu = new ggc.app.main.Menu(manager);
+      menu.open();
+    }
+  }
+
+}

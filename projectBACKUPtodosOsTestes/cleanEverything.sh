@@ -1,0 +1,1 @@
+cd ggc-core; make clean; cd ../ggc-app; make clean;

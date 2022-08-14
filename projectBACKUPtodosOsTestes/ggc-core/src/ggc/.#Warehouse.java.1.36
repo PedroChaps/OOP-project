@@ -1,0 +1,526 @@
+package ggc;
+
+import java.io.BufferedReader;
+import java.io.FileReader;
+import java.io.IOException;
+import java.io.Serializable;
+
+import java.util.*;
+
+import ggc.exceptions.*;
+
+/**
+ * Class Warehouse implements a warehouse.
+ */
+
+public class Warehouse implements Serializable {
+
+  /** Serial number for serialization. */
+  private static final long serialVersionUID = 202109192006L;
+
+  /** Number of existent batches. */
+  private int _batchesID = 0;
+
+  private int _transactionsID = 0;
+
+  /** Current date. */
+  private int _date = 0;
+
+  /** Global balance. */
+  private double _avaliableBalance = 0;
+  private double _accountingBalance = 0;
+
+  /** HashMap to store all the partners. */
+  private HashMap<String, Partner> _partners = new HashMap<>();
+
+  /** HashMap to store all the products. */
+  private HashMap<String,Product> _products = new HashMap<>();
+
+  /** HashMap to store all the batches. The key is the product ID. */
+ // private HashMap<Product,HashSet<Batch>> _batches = new HashMap<>();
+  private HashMap<Integer,Batch> _batches = new HashMap<>();
+
+  private HashMap<Partner,List<Transaction>> _transactions = new HashMap<>();
+
+  public Transaction findTransaction(int transactionID){
+    for (Partner p: _partners.values()){
+      for (Transaction t: _transactions.get(p)){
+        if (transactionID == t.getId())
+          return t;
+      }
+    }
+    return null;
+  }
+
+
+  /** @return the current number of batches.*/
+  public int getBatchesID(){
+    return _batchesID;
+  }
+
+  /** Increments in one unity the number of existent batches. */
+  private void incBatchesID(){
+    _batchesID++;
+  }
+
+  private void incTransactionsID(){
+    _transactionsID++;
+  }
+
+
+  /** @param slack the number of days to advance.
+   *  @throws BadDateException if the number of days is not positive.*/
+  public void processAdvanceDate(int slack) throws BadDateException {
+    if (slack <= 0) {
+      throw new BadDateException(slack);
+    }
+    _date += slack;
+  }
+
+  /** @return the current date.*/
+  public int processDisplayDate(){
+    return _date;
+  }
+
+  /** Creates a new partner.
+   * @param partnerID id of the partner.
+   *  @param name  name of the partner.
+   *  @param address address of the partner.
+   *  @throws SamePartnerKeyException if the partner already exists.
+   */
+  public void processRegisterPartner(String partnerID, String name,
+                                     String address) throws
+          SamePartnerKeyException {
+      if(_partners.containsKey(partnerID.toLowerCase()))
+        throw new SamePartnerKeyException(partnerID);
+      Partner partner = new Partner(partnerID,name,address);
+      _partners.put(partnerID.toLowerCase(),partner);
+      for (Map.Entry<String, Product> entry : _products.entrySet())
+        entry.getValue().registerObserver(partner);
+
+  }
+
+  /** @return  a list with  all partners*/
+  public List<Partner> processShowAllPartners(){
+    List<Partner> partnersInfo = new LinkedList<>();
+    try {
+      for (Map.Entry<String, Partner> entry : _partners.entrySet()) {
+        partnersInfo.add(processShowPartner(entry.getValue().getId()));
+      }
+    }
+    catch(UndefinedPartnerKeyException e){e.printStackTrace();}
+    Collections.sort(partnersInfo);
+    return partnersInfo;
+  }
+
+
+/** @return  a list of all products.*/
+  public List<Product> processShowAllProducts(){
+    List<Product> productsInfo = new LinkedList<Product>();
+    try {
+      for (Map.Entry<String, Product> entry : _products.entrySet()) {
+      //for(String s : _products.keySet())
+        productsInfo.add(processShowProduct(entry.getValue().getId()));
+      }
+    }
+    catch (UndefinedProductKeyException e){e.printStackTrace();}
+
+    Collections.sort(productsInfo);
+    return productsInfo;
+  }
+
+  /** @return a list off all batches.*/
+  public List<Batch> processShowAvailableBatches(){
+    List<Batch> batchesInfo = new LinkedList<Batch>();
+
+    for (Map.Entry<Integer, Batch> entry : _batches.entrySet()) {
+      if(!entry.getValue().soldOutBatch()) {
+        batchesInfo.add(entry.getValue());
+      }
+    }
+
+    Collections.sort(batchesInfo);
+    return batchesInfo;
+  }
+
+
+  /** Searches for the partner with that id and returns it.
+   * @param partnerID the id of the partner.
+   *  @return  the partner with that id.
+   *  @throws UndefinedPartnerKeyException if the id given does not
+   *  exist.
+   */
+  public Partner processShowPartner(String partnerID) throws
+          UndefinedPartnerKeyException {
+    Partner p = _partners.get(partnerID.toLowerCase());
+    if (p == null){throw new UndefinedPartnerKeyException(partnerID);}
+    return p;
+  }
+
+
+  /**Searches for the product with that id and returns it.
+   * @param productID the id of the product.
+   * @throws UndefinedProductKeyException if the id given does not
+   * exist.
+   */
+  public Product processShowProduct(String productID) throws
+          UndefinedProductKeyException {
+    Product p = _products.get(productID);
+    if (p == null){throw new UndefinedProductKeyException(productID);}
+  return p;
+  }
+
+
+  /**Creates a new batch of a simple product with that id,
+   * associated to the partner with that id. The batch has that
+   * price associated and that quantity of that product.
+   * It also adds the batch to the collection of all batches.
+   * @param productID the id of the product.
+   * @param partnerID the id of the partner.
+   * @param price the price.
+   * @param stock the number of elements of the product with that id.
+   * @throws UndefinedPartnerKeyException if the id given does not
+   * exist.
+   */
+  public void processRegisterSBatch(String productID, String partnerID,
+                                    double price, int stock) throws
+           UndefinedPartnerKeyException {
+
+    if (!_partners.containsKey(partnerID.toLowerCase())) {
+      throw new UndefinedPartnerKeyException(partnerID);
+    }
+
+    if (_products.containsKey(productID)){
+      updateProductInfo(productID, price, stock);
+    }
+
+    else {
+      registerSProduct(productID, stock, price);
+    }
+    Batch batch = new Batch(_partners.get(partnerID.toLowerCase()),
+            _products.get(productID), getBatchesID(), stock, price);
+    _batches.put(getBatchesID(), batch);
+    incBatchesID();
+  }
+
+  /**Creates a new batch of a derived product with that id, associated
+   * to the partner with that id. The batch has that
+   * price associated and that quantity of that product.
+   * It also adds the batch to the collection of all batches.
+   * @param productID the id of the product.
+   * @param partnerID the id of the partner.
+   * @param price the price.
+   * @param stock the number of elements of the product with that id.
+   * @param alpha the aggravating factor associated.
+   * @param recipe the recipe of that product.
+   * @throws UndefinedPartnerKeyException if the id given does not
+   * exist.
+   */
+  public void processRegisterMBatch(String productID, String partnerID,
+                                    double price, int stock,
+                                    double alpha, Recipe recipe) throws
+          UndefinedPartnerKeyException{
+
+    if (!_partners.containsKey(partnerID.toLowerCase())) {
+      throw new UndefinedPartnerKeyException(partnerID);
+    }
+
+    if (_products.containsKey(productID)){
+      updateProductInfo(productID, price, stock);
+    }
+
+    else {
+      registerMProduct(productID, stock, price, alpha, recipe);
+    }
+
+    Batch batch = new Batch(_partners.get(partnerID.toLowerCase()),
+            _products.get(productID), getBatchesID(), stock, price);
+    _batches.put(getBatchesID(), batch);
+    incBatchesID();
+  }
+
+  private void updateProductInfo(String productID, double price, int stock){
+
+    Product product = _products.get(productID);
+
+    if (product.getStock() == 0)
+      product.notifyObservers(new New(new Default())); //FIXME
+
+    product.changeStock(stock);
+
+    if (price > product.getMaxPrice()) {
+      product.setMaxPrice(price);
+    }
+
+
+    double minPrice = findLowestPriceOfProduct(productID);
+
+    if (price < minPrice) {
+      product.setMinPrice(price);
+      product.notifyObservers(new Bargain(new Default())); //FIXME
+    }
+
+  }
+
+
+
+  /** Transforms a string with the ingredients and the respective
+   *  quantities and turns it into a recipe.
+   * @param components the components of the recipe and respective
+   *                    quantity
+   *  @return a recipe
+   */
+  private Recipe componentsToRecipe(String components){
+    Recipe recipe = new Recipe();
+    String[] splittedComponents = components.split("#");
+    String[] pairProductQuantity;
+
+    for(String pair: splittedComponents){
+      pairProductQuantity = pair.split(":");
+      recipe.addIngredient(_products.get(pairProductQuantity[0]),
+              Integer.parseInt(pairProductQuantity[1]));
+    }
+
+    return recipe;
+  }
+
+  /**Registers a new simple product and alters its overall stock
+   *               from 0 to the number of products.
+   *  It also adds it to the collection of all products.
+   * @param productID the id of the product.
+   *  @param stock the number of elements of that product that exist
+   *               overall.
+   *  @param price the price.
+   */
+  // TODO Product -> Simple Product
+  public void registerSProduct(String productID, int stock,
+                               double price){
+    Product product = new Product(productID, price);
+    product.changeStock(stock);
+    _products.put(productID, product);
+    for (Map.Entry<String,Partner> entry : _partners.entrySet())
+      product.registerObserver(entry.getValue());
+  }
+
+  /**Registers a new derived product and alters its overall stock
+   *                from 0 to the number of products.
+   *  It also adds it to the collection of all products.
+   * @param productID the id of the product.
+   *  @param stock the number of elements of that product that exist
+   *               overall.
+   *  @param price the price.
+   *  @param alpha the aggravating factor associated.
+   *  @param recipe the recipe associated with the product.
+   */
+  public void registerMProduct(String productID, int stock,
+                               double price, double alpha,
+                               Recipe recipe){
+    DerivedProduct product = new DerivedProduct(productID, price,
+            alpha, recipe);
+    product.changeStock(stock);
+    _products.put(productID, product);
+    for (Map.Entry<String,Partner> entry : _partners.entrySet())
+      product.registerObserver(entry.getValue());
+  }
+
+
+  /**
+   * @param txtfile filename to be loaded.
+   * @throws IOException
+   * @throws BadEntryException
+   */
+  void importFile(String txtfile) throws
+          IOException, BadEntryException{
+    BufferedReader in = new BufferedReader(new FileReader(txtfile));
+    String line;
+    String[] splitted;
+
+    while ((line = in.readLine()) != null){
+        splitted = line.split("\\|");
+        try {
+          switch (splitted[0]) {
+
+            case "PARTNER" -> processRegisterPartner(splitted[1],
+                    splitted[2], splitted[3]);
+            case "BATCH_S" -> processRegisterSBatch(splitted[1],
+                    splitted[2], Integer.parseInt(splitted[3]),
+                    Integer.parseInt(splitted[4]));
+            case "BATCH_M" -> processRegisterMBatch(splitted[1],
+                    splitted[2], Integer.parseInt(splitted[3]),
+                    Integer.parseInt(splitted[4]),
+                    Double.parseDouble(splitted[5]),
+                    componentsToRecipe(splitted[6]));
+
+          }
+        }
+        catch (UndefinedPartnerKeyException e){
+          e.printStackTrace();
+        } catch (SamePartnerKeyException e){
+          e.printStackTrace();
+        }
+    }
+  }
+
+
+  public List<Batch> processShowBatchesByPartner(String partnerID) throws UndefinedPartnerKeyException {
+
+    if (!_partners.containsKey(partnerID.toLowerCase())) {
+      throw new UndefinedPartnerKeyException(partnerID);
+    }
+
+    List<Batch> allBatches = processShowAvailableBatches();
+    List<Batch> specificBatches = new ArrayList<>();
+
+    for (Batch b : allBatches){
+      if (b.getPartner().getId() == partnerID){
+        specificBatches.add(b);
+      }
+    }
+
+    return specificBatches;
+  }
+
+  public List<Batch> processShowBatchesByProduct(String productID) throws UndefinedProductKeyException {
+
+    if (!_products.containsKey(productID)) {
+      throw new UndefinedProductKeyException(productID);
+    }
+
+    List<Batch> allBatches = processShowAvailableBatches();
+    List<Batch> specificBatches = new ArrayList<>();
+
+    for (Batch b : allBatches){
+      if (b.getProduct().getId() == productID){
+        specificBatches.add(b);
+      }
+    }
+
+    return specificBatches;
+  }
+
+  public List<Batch> processLookupProductBatchesUnderGivenPrice(double price) {
+
+    List<Batch> allBatches = processShowAvailableBatches();
+    List<Batch> specificBatches = new ArrayList<>();
+
+    for (Batch b : allBatches){
+      if (b.getPrice() < price){
+        specificBatches.add(b);
+      }
+    }
+    return specificBatches;
+  }
+
+
+  public double getAvaliableBalance(){
+    return _avaliableBalance;
+  }
+
+  public double getAccountingBalance(){
+    return _accountingBalance;
+  }
+
+  public void updateAvaliableBalance(double slack){
+    _avaliableBalance += slack;
+  }
+
+  public void updateAccountingBalance(double slack){
+    _accountingBalance += slack;
+  }
+
+  public void processRegisterSale(){}
+
+  private void addTransaction(Transaction t, Partner p){
+    List<Transaction> partnerTransactions = _transactions.get(p);
+    if (partnerTransactions == null){
+      partnerTransactions = new ArrayList<>();
+      partnerTransactions.add(t);
+      _transactions.put(p,partnerTransactions);
+    }
+    else
+      partnerTransactions.add(t);
+    incTransactionsID();
+  }
+
+  public void processRegisterSaleTransaction(String partnerID, int paymentDeadline, String productID, int amount){} // throws uma excecao
+
+  //public void processRegisterAcquisitionTransactionSBatch(String partnerID, String productID, double price, int amount)
+
+  public void processReceivePayment(int transactionID) throws UndefinedTransactionKeyException {
+
+    Transaction t = findTransaction(transactionID);
+    if (t == null) throw new UndefinedTransactionKeyException(transactionID);
+
+    t.pay(_date);
+    _avaliableBalance += t.getPaidPrice();
+  }
+
+  public Transaction processShowTransaction(int transactionID) throws UndefinedTransactionKeyException {
+
+    Transaction t = findTransaction(transactionID);
+    if (t == null) throw new UndefinedTransactionKeyException(transactionID);
+
+    return t;
+  }
+
+  public List<Transaction> processLookupPaymentsByPartner(String partnerID) throws UndefinedPartnerKeyException{
+
+    Partner p = _partners.get(partnerID);
+    if (p == null) throw new UndefinedPartnerKeyException(partnerID);
+
+    List<Transaction> specificTransactions = new ArrayList<>();
+    List<Transaction> allTransactions = _transactions.get(p);
+
+    for (Transaction t : allTransactions){
+      if (t.isPaid())
+        specificTransactions.add(t);
+    }
+
+    return specificTransactions;
+  }
+
+  public double findLowestPriceOfProduct(String productID)  {
+
+    Product p = _products.get(productID);
+    double minPrice = p.getMaxPrice();
+
+    for (Batch b : _batches.values()){
+      if (!b.soldOutBatch() && b.getProduct().getId().equals(productID))
+        if (b.getPricePerProduct() < minPrice)
+          minPrice = b.getPricePerProduct();
+    }
+
+    return minPrice;
+
+  }
+
+  public void breakdownProduct(String productID, int amount){
+    // Tirar o stock do produto derivado
+    // Calcular o preço que o José pagaria
+    // Aumentar stock dos componentes
+    // Calcular o preço total com esses componentes
+  }
+
+  public void processRegisterBreakdownTransaction(String partnerID, String productID, int amount) throws UndefinedProductKeyException, UndefinedPartnerKeyException, LowOnStockException {
+
+    Partner p = _partners.get(partnerID);
+    if (p == null) throw new UndefinedPartnerKeyException(partnerID);
+
+    Product pr = _products.get(productID);
+    if (pr == null) throw new UndefinedProductKeyException(productID);
+
+    if (pr.getStock() < amount)
+      throw new LowOnStockException(productID, amount, pr.getStock());
+
+    breakdownProduct(productID, amount);
+
+    // Operação Instantanea => Atualizo aqui os stocks e o valor ganho
+
+    // Esta transacção regista o produto de origem e os lotes dos resultantes
+    // (associados ao parceiro que pede a operação), bem como os respectivos valores
+  }
+
+}
+
+
+

@@ -1,0 +1,1 @@
+cd ggc-core; make; cd ../ggc-app; make; cd src/ggc/app; java App.java -Dimport=test.import;

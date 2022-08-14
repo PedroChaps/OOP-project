@@ -1,0 +1,83 @@
+package ggc;
+
+import ggc.exceptions.NotEnoughQuantityException;
+
+import java.io.Serializable;
+import java.text.Collator;
+import java.util.HashSet;
+
+public abstract class Product implements Serializable, Comparable<Product>, Observable {
+    private String _id;
+    private int _stock = 0;
+    private double _maxPrice;
+    private double _minPrice;
+    private int _offsetN;
+    private HashSet<Observer> _observers = new HashSet<>();
+
+
+    public Product(String id, double maxPrice){
+        _id = id;
+        _maxPrice = maxPrice;
+        _minPrice = maxPrice;
+    }
+
+    public String getId(){return _id;}
+    public int getStock(){return _stock;}
+
+    public void changeStock(int quantity){_stock += quantity;}
+    public int getOffsetN(){return _offsetN;}
+    public void setOffsetN(int offset){_offsetN = offset;}
+    public double getMaxPrice(){
+        return _maxPrice;
+    }
+    public void setMaxPrice(double newMaxPrice){
+        _maxPrice = newMaxPrice;
+    }
+    public double getMinPrice(){
+        return _minPrice;
+    }
+    public void setMinPrice(double newMinPrice){
+        _minPrice = newMinPrice;
+    }
+
+    public int compareTo(Product other){
+        final Collator collator = Collator.getInstance();
+        collator.setStrength(Collator.NO_DECOMPOSITION);
+
+        return collator.compare(_id.toLowerCase(),
+                other.getId().toLowerCase());
+    }
+
+    @Override
+    public String toString(){
+        return _id + "|" + Math.round(_maxPrice) + "|" + _stock;
+    }
+
+    public boolean containsObserver(Observer o){
+        return _observers.contains(o);
+    }
+    public void registerObserver(Observer o){
+        _observers.add(o);
+    }
+    public void removeObserver(Observer o){
+        _observers.remove(o);
+    }
+    public void notifyObservers(Notification n){ //pbby FIXME
+        for (Observer o : _observers)
+            o.update(n);
+    }
+
+    public boolean equals(Object o){
+        if  (o instanceof Product){
+            Product p = (Product) o;
+            return _id.equals(p.getId());
+        }
+        return false;
+    }
+
+    public abstract Breakdown acceptBreakdown(ProductVisitor warehouse, Partner p, int amount);
+    public abstract double acceptSale(ProductVisitor visitor);
+    public abstract boolean checkAvailability(int amount) throws NotEnoughQuantityException;
+
+
+}

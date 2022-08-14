@@ -1,0 +1,16 @@
+PARTNER|Cryostuffs|Cryostuffs|Tokyo, Japan
+PARTNER|W2|Papelaria Fernandes|Oeiras, Portugal
+PARTNER|P1|Publicações Europa-América|Lisboa, Portugal
+PARTNER|P3|O’Reilly|Köln, Germany
+PARTNER|EPAL|EPAL|Lisboa, Portugal
+PARTNER|E4|Filomena Figueiredo|Lisboa, Portugal
+PARTNER|ER|Abdul Figueiredo|Casablanca, Morocco
+PARTNER|O9|Hellen Figueiredo|San Francisco, CA, USA
+PARTNER|H2SO4|John Figueiredo|Wellington, New Zealand
+PARTNER|H2O|Rohit Figueiredo|New Delhi, India
+BATCH_S|OXIGÉNIO|Cryostuffs|650|5000
+BATCH_M|ÁGUA|EPAL|1150|800|0.1|HIDROGÉNIO:2#OXIGÉNIO:1
+BATCH_S|HIDROGÉNIO|Cryostuffs|110|5000
+BATCH_S|OXIGÉNIO|EPAL|820|2500
+BATCH_S|OXIGÉNIO|Cryostuffs|820|2500
+BATCH_S|OXIGÉNIO|Cryostuffs|650|2500
